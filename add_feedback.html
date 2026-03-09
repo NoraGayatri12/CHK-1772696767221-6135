@@ -1,0 +1,28 @@
+<!-- templates/add_feedback.html -->
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Add Feedback - Helping Hands</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <header><h1>Add Feedback</h1><nav><a href="{{ url_for('ngo_dashboard') }}">Back</a></nav></header>
+  <main class="container">
+    <section class="card">
+      <h2>Report ID: {{ report[0] }}</h2>
+      <p>{{ report[2] }}</p>
+      <p><strong>Location:</strong> {{ report[3] }}</p>
+      {% if report[1] %}<img src="{{ url_for('static', filename='uploads/' ~ report[1]) }}" class="thumb">{% endif %}
+
+      <form method="post" enctype="multipart/form-data">
+        <label>Feedback message (this will be public)</label>
+        <textarea name="message" required></textarea>
+        <label>Proof photo (optional)</label>
+        <input type="file" name="photo" accept="image/*">
+        <button type="submit">Post Feedback & Mark Resolved</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

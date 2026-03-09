@@ -1,0 +1,29 @@
+<!-- templates/public_feed.html -->
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Public Feed - Helping Hands</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <header><h1>Public Feed (Resolved Cases)</h1><nav><a href="{{ url_for('index') }}">Home</a></nav></header>
+  <main class="container">
+    {% if items %}
+      <ul class="reports">
+        {% for it in items %}
+          <li>
+            <strong>ID:</strong> {{ it[0] }} | <strong>Reporter:</strong> {{ it[6] }} | <small>{{ it[5] }}</small>
+            <p>{{ it[2] }}</p>
+            <p><strong>Location:</strong> {{ it[3] }}</p>
+            {% if it[1] %}<img src="{{ url_for('static', filename='uploads/' ~ it[1]) }}" class="thumb">{% endif %}
+            <p><a href="{{ url_for('view_feedback', report_id=it[0]) }}">View Feedback</a></p>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No resolved reports yet.</p>
+    {% endif %}
+  </main>
+</body>
+</html>

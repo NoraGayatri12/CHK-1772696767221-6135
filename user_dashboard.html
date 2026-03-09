@@ -1,0 +1,102 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>User Dashboard - Helping Hands</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <header>
+    <h1>User Dashboard</h1>
+    <nav>
+      <a href="{{ url_for('index') }}">Home</a>
+      <a href="{{ url_for('public_feed') }}">Public Feed</a>
+      <a href="{{ url_for('logout') }}">Logout</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul class="flashes">{% for m in messages %}<li>{{ m }}</li>{% endfor %}</ul>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Submit Report Section -->
+    <section class="card">
+      <h2>Submit a Report</h2>
+      <form method="post" enctype="multipart/form-data">
+        <label>Photo (optional)</label>
+        <input type="file" name="photo" accept="image/*">
+
+        <label>Description</label>
+        <textarea name="description" required></textarea>
+
+        <label>Location</label>
+        <input type="text" name="location" id="location" placeholder="Enter your location" required>
+        <button type="button" onclick="getLocation()">Use My Current Location</button>
+
+        <button type="submit">Submit</button>
+      </form>
+
+      <script>
+        async function getLocation() {
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(async function(position) {
+              const lat = position.coords.latitude;
+              const lon = position.coords.longitude;
+
+              try {
+                // Reverse geocode with OpenStreetMap Nominatim API
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`);
+                const data = await res.json();
+                if (data.display_name) {
+                  document.getElementById("location").value = data.display_name;
+                } else {
+                  document.getElementById("location").value = `${lat.toFixed(6)},${lon.toFixed(6)}`;
+                  alert("Could not get readable address, using coordinates.");
+                }
+              } catch (err) {
+                document.getElementById("location").value = `${lat.toFixed(6)},${lon.toFixed(6)}`;
+                alert("Error fetching address. Using coordinates.");
+              }
+            }, function(error) {
+              alert("Unable to get location. Please enter manually.");
+            });
+          } else {
+            alert("Geolocation is not supported by your browser.");
+          }
+        }
+      </script>
+    </section>
+
+    <!-- User Reports Section -->
+    <section class="card">
+      <h2>Your Reports</h2>
+      {% if reports %}
+        <ul class="reports">
+          {% for r in reports %}
+            <li>
+              <strong>ID:</strong> {{ r[0] }} |
+              <strong>Status:</strong> {{ r[4] }} |
+              <strong>Priority:</strong> {{ r[6] if r|length>6 else 'Medium' }} |
+              <small>{{ r[5] }}</small>
+              <p>{{ r[2] }}</p>
+              <p><strong>Location:</strong> {{ r[3] }}</p>
+              {% if r[1] %}
+                <img src="{{ url_for('static', filename='uploads/' ~ r[1]) }}" class="thumb">
+              {% endif %}
+              <p><a href="{{ url_for('view_feedback', report_id=r[0]) }}">View feedback</a></p>
+              {% if r[4] == 'Resolved' %}
+                <p><a href="{{ url_for('download_certificate', report_id=r[0]) }}" class="btn btn-success">Download Certificate</a></p>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No reports yet.</p>
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>

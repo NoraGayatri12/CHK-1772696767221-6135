@@ -1,0 +1,41 @@
+<!-- templates/view_feedback.html -->
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Feedback - Helping Hands</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <header><h1>Feedback</h1><nav><a href="{{ url_for('index') }}">Home</a></nav></header>
+  <main class="container">
+    <section class="card">
+      <h2>Report ID: {{ report[0] }}</h2>
+      <p><strong>Reported by:</strong> {{ report[6] }}</p>
+      <p><strong>Description:</strong> {{ report[2] }}</p>
+      <p><strong>Location:</strong> {{ report[3] }}</p>
+      {% if report[1] %}<img src="{{ url_for('static', filename='uploads/' ~ report[1]) }}" class="thumb">{% endif %}
+      <p><strong>Status:</strong> {{ report[4] }}</p>
+      <hr>
+      <h3>Feedbacks</h3>
+      {% if feedbacks %}
+        {% for f in feedbacks %}
+          <div class="feedback-card">
+            <p><strong>NGO:</strong> {{ f[4] }} <small>on {{ f[3] }}</small></p>
+            <p>{{ f[1] }}</p>
+            {% if f[2] %}
+              <img src="{{ url_for('static', filename='uploads/' ~ f[2]) }}" class="thumb">
+            {% endif %}
+          </div>
+        {% endfor %}
+      {% else %}
+        <p>No feedback yet.</p>
+      {% endif %}
+
+      {% if report[4] == 'Resolved' %}
+        <p><a href="{{ url_for('download_certificate', report_id=report[0]) }}">Download Certificate</a></p>
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>

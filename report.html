@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Report Person</title>
+</head>
+
+<body>
+
+<h2>Capture Photo</h2>
+
+<video id="camera" width="350" height="250" autoplay></video>
+<br><br>
+
+<button onclick="startCamera()">Start Camera</button>
+<button onclick="capturePhoto()">Capture</button>
+
+<br><br>
+
+<canvas id="canvas" width="350" height="250"></canvas>
+
+<script>
+let video = document.getElementById("camera");
+let canvas = document.getElementById("canvas");
+
+function startCamera() {
+navigator.mediaDevices.getUserMedia({ video: true })
+.then(function(stream) {
+video.srcObject = stream;
+})
+.catch(function(error) {
+console.log(error);
+});
+}
+
+function capturePhoto() {
+let context = canvas.getContext("2d");
+context.drawImage(video, 0, 0, 350, 250);
+}
+</script>
+
+</body>
+</html>

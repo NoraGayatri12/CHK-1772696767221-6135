@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>HopeBridge Certificate</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="certificate">
+    <div class="certificate-container">
+        <h1>🌿 HopeBridge 🌿</h1>
+        <h2>Certificate of Appreciation</h2>
+        <p>This certificate is proudly presented to</p>
+        <h3>{{ username }}</h3>
+        <p>for their valuable contribution and compassion.</p>
+        <blockquote>“Small acts of kindness create waves of hope.”</blockquote>
+        <p><strong>Case:</strong> {{ description }}</p>
+        <p><strong>Issued on:</strong> {{ date }}</p>
+        <div class="signature">
+            <p>__________________________</p>
+            <p><em>HopeBridge Organization</em></p>
+        </div>
+    </div>
+</body>
+</html>
