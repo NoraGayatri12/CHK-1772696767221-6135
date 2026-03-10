@@ -1,70 +1,14 @@
+<!-- templates/index.html -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <title>HopeBridge</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-  <style>
-    /* Chatbot styles */
-    #chatbot-container {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      width: 300px;
-      max-height: 400px;
-      background: white;
-      border: 1px solid #ccc;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.2);
-      display: flex;
-      flex-direction: column;
-      font-family: Arial, sans-serif;
-      z-index: 1000;
-    }
-    #chatbot-header {
-      background: #ffcc00;
-      padding: 10px;
-      border-top-left-radius: 10px;
-      border-top-right-radius: 10px;
-      text-align: center;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    #chatbot-messages {
-      flex: 1;
-      padding: 10px;
-      overflow-y: auto;
-      font-size: 14px;
-      display: none; /* initially hidden */
-    }
-    .message {
-      margin-bottom: 10px;
-      clear: both;
-    }
-    .user-msg { text-align: right; color: blue; }
-    .bot-msg { text-align: left; color: green; }
-    #chatbot-input-container {
-      display: flex;
-      border-top: 1px solid #ccc;
-      display: none; /* initially hidden */
-    }
-    #chatbot-input {
-      flex: 1;
-      border: none;
-      padding: 10px;
-      font-size: 14px;
-    }
-    #chatbot-send {
-      background: #ffcc00;
-      border: none;
-      padding: 10px;
-      cursor: pointer;
-    }
-  </style>
 </head>
 <body class="image">
   <header>
-    <h1 style="color:yellow">HopeBridge</h1>
+    <h1>HopeBridge</h1>
     <nav>
       {% if session.user_id %}
         <span>Hi, {{ session.user_name }}</span>
@@ -105,7 +49,7 @@
       <h2>Our Vision</h2>
       <p>We dream of an India where no one sleeps hungry and every person gets a chance to live with dignity.
 Our goal is to reduce poverty by connecting helping hearts with people in need.
-Together, we can build a kind, caring, and poverty-free nation. ❤️</p>
+Together, we can build a kind, caring, and poverty-free nation. ❤</p>
       <img src="{{ url_for('static', filename='images/vision.jpg') }}" alt="Vision of HopeBridge">
     </section>
 
@@ -125,72 +69,15 @@ Together, we can build a kind, caring, and poverty-free nation. ❤️</p>
         </div>
         <div class="step">
           <img src="{{ url_for('static', filename='images/step3.jpg') }}" alt="Get Recognized">
-          <h3>3. Get Certificate</h3>
+          <h3>3. Get Recognized</h3>
           <p>Users receive a digital certificate for their social contribution.</p>
         </div>
       </div>
     </section>
   </main>
 
-  <footer>
+  <footer class="footer20">
     &copy; <b>2025 HopeBridge – Empowering Lives Together</b>
   </footer>
-
-  <!-- Collapsible Chatbot Widget -->
-  <div id="chatbot-container">
-    <div id="chatbot-header">AI Assistant (Click to Chat)</div>
-    <div id="chatbot-messages"></div>
-    <div id="chatbot-input-container">
-      <input type="text" id="chatbot-input" placeholder="Ask me anything...">
-      <button id="chatbot-send">Send</button>
-    </div>
-  </div>
-
-  <script>
-    const header = document.getElementById('chatbot-header');
-    const messagesDiv = document.getElementById('chatbot-messages');
-    const inputContainer = document.getElementById('chatbot-input-container');
-    const input = document.getElementById('chatbot-input');
-    const sendBtn = document.getElementById('chatbot-send');
-
-    // Toggle chatbot open/close
-    header.addEventListener('click', () => {
-      const isVisible = messagesDiv.style.display === 'flex';
-      messagesDiv.style.display = isVisible ? 'none' : 'flex';
-      inputContainer.style.display = isVisible ? 'none' : 'flex';
-    });
-
-    function appendMessage(text, sender) {
-      const msgDiv = document.createElement('div');
-      msgDiv.classList.add('message', sender === 'user' ? 'user-msg' : 'bot-msg');
-      msgDiv.textContent = text;
-      messagesDiv.appendChild(msgDiv);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    }
-
-    async function sendMessage() {
-      const msg = input.value.trim();
-      if (!msg) return;
-      appendMessage(msg, 'user');
-      input.value = '';
-
-      try {
-        const response = await fetch('{{ url_for("chatbot") }}', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: msg })
-        });
-        const data = await response.json();
-        appendMessage(data.reply, 'bot');
-      } catch (err) {
-        appendMessage("Sorry, assistant is unavailable.", 'bot');
-      }
-    }
-
-    sendBtn.addEventListener('click', sendMessage);
-    input.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') sendMessage();
-    });
-  </script>
 </body>
 </html>
