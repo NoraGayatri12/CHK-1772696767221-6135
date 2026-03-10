@@ -27,22 +27,36 @@
       <h2>All Reports</h2>
       {% if reports %}
         <table class="reports-table">
-          <thead><tr><th>ID</th><th>Reporter</th><th>Description</th><th>Location</th><th>Photo</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th>ID</th><th>Reporter</th><th>Description</th><th>Location</th><th>Photo</th><th>Status</th><th>Priority</th><th>Category</th><th>Actions</th></tr></thead>
           <tbody>
           {% for r in reports %}
             <tr>
-              <td>{{ r[0] }}</td>
-              <td>{{ r[6] }}</td>
-              <td>{{ r[2] }}</td>
-              <td>{{ r[3] }}</td>
-              <td>{% if r[1] %}<img src="{{ url_for('static', filename='uploads/' ~ r[1]) }}" class="thumb">{% endif %}</td>
-              <td>{{ r[4] }}</td>
+              <td>{{ r[0] }}</td>   <!-- Report ID -->
+              <td>{{ r[8] }}</td>   <!-- Reporter Name -->
+              <td>{{ r[2] }}</td>   <!-- Description -->
+              <td>{{ r[3] }}</td>   <!-- Location -->
+              <td>
+              {% if r[1] %}
+                <img src="{{ url_for('static', filename='uploads/' ~ r[1]) }}" class="thumb">
+              {% endif %}
+              </td>
+              <td>{{ r[4] }}</td>   <!-- Status -->
+              <td>
+              {% if r[6] == 'High' %}
+                <span style="color:red;font-weight:bold;">High</span>
+              {% elif r[6] == 'Medium' %}
+                <span style="color:orange;">Medium</span>
+              {% else %}
+                <span style="color:green;">Low</span>
+              {% endif %}
+              </td>
+              <td>{{ r[7] }}</td>   <!-- Category -->
               <td>
                 <a href="{{ url_for('view_feedback', report_id=r[0]) }}">View Feedback</a>
                 <a href="{{ url_for('add_feedback', report_id=r[0]) }}">Add Feedback</a>
               </td>
             </tr>
-          {% endfor %}
+            {% endfor %}
           </tbody>
         </table>
       {% else %}
