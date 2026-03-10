@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>{{ domain }} Domain</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    </head>
+    <body>
+        <h1 style="text-align:center">{{ domain|capitalize }} Domain</h1>
+        <div class="impact-box">
+            <p>Total Cases: {{ total }}</p>
+            <p>Resolved Cases: {{ resolved }}</p>
+            <p>Pending Cases: {{ pending }}</p>
+        </div>
+        <h2 style="text-align:center">Recent Reports</h2>
+        <ul class="reports">
+          {% for r in reports %}
+            <li>
+                <strong>ID:</strong> {{ r[0] }} <br>
+                <strong>Description:</strong> {{ r[1] }} <br>
+                <strong>Location:</strong> {{ r[2] }} <br>
+                <strong>Status:</strong> {{ r[3] }}
+            </li>
+          {% endfor %}
+        </ul>
+    </body>
+</html>
