@@ -68,10 +68,10 @@
               <small>{{ r[5] }}</small>
               <p>{{ r[2] }}</p>
               <p><strong>Location:</strong> {{ r[3] }}</p>
-              {% if r[1] %}
+              <!-- {% if r[1] %}
                 <img src="{{ url_for('static', filename='uploads/' ~ r[1]) }}" class="thumb">
-              {% endif %}
-              <p><a href="{{ url_for('view_feedback', report_id=r[0]) }}">View feedback</a></p>
+              {% endif %} -->
+              <p><a href="{{ url_for('view_feedback', report_id=r[0]) }}"><button>View feedback</button></a></p>
               {% if r[4] == 'Resolved' %}
                 <p><a href="{{ url_for('download_certificate', report_id=r[0]) }}">Download Certificate</a></p>
               {% endif %}
@@ -146,7 +146,7 @@
             alert("Location permission denied. Please allow location.");
           }
           else if(error.code === 2){
-            alert("Location unavailable.");
+            alert("Location unavailable." );
           }
           else{
             alert("Location request timed out.");
