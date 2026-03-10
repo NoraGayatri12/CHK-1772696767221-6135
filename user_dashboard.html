@@ -1,11 +1,14 @@
+<!-- templates/user_dashboard.html -->
 <!doctype html>
 <html>
 <head>
   <meta charset="utf-8">
   <title>User Dashboard - Helping Hands</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 </head>
-<body>
+<body style="background: linear-gradient(120deg,#74ebd5,#9face6);">
   <header>
     <h1>User Dashboard</h1>
     <nav>
@@ -22,55 +25,38 @@
       {% endif %}
     {% endwith %}
 
-    <!-- Submit Report Section -->
     <section class="card">
       <h2>Submit a Report</h2>
       <form method="post" enctype="multipart/form-data">
-        <label>Photo (optional)</label>
-        <input type="file" name="photo" accept="image/*">
-
+        <label>Camera</label>
+        <video id="camera" width="300" autoplay></video>
+        <br><br>
+        <button type="button" onclick="startCamera()">Open Camera</button>
+        <button type="button" onclick="capturePhoto()">Capture</button>
+        <canvas id="canvas" style="display:none;"></canvas>
+        <img id="preview" style="width:200px;margin-top:10px;">
+        <input type="hidden" name="photo_data" id="photo_data">
+        <label>Select Domain</label>
+        <select name="domain" required>
+          <option value="child">Child Welfare</option>
+          <option value="women">Women Empowerment</option>
+          <option value="elderly">Elderly Support</option>
+          <option value="homeless">Homeless</option>
+          <option value="environment">Environment</option>
+          <option value="health">Community Health</option>
+        </select>
         <label>Description</label>
         <textarea name="description" required></textarea>
-
         <label>Location</label>
-        <input type="text" name="location" id="location" placeholder="Enter your location" required>
-        <button type="button" onclick="getLocation()">Use My Current Location</button>
-
-        <button type="submit">Submit</button>
+          <div class="location-box">
+            <input type="text" id="location" name="location" placeholder="Enter location" required>
+            <button type="button" onclick="getLocation()" class="location-btn">Use Current Location</button>
+          </div>
+          <div id="map" style="height:300px;margin-top:10px;border-radius:10px;"></div>
+        <button type="submit">Submit</button> 
       </form>
-
-      <script>
-        async function getLocation() {
-          if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(async function(position) {
-              const lat = position.coords.latitude;
-              const lon = position.coords.longitude;
-
-              try {
-                // Reverse geocode with OpenStreetMap Nominatim API
-                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`);
-                const data = await res.json();
-                if (data.display_name) {
-                  document.getElementById("location").value = data.display_name;
-                } else {
-                  document.getElementById("location").value = `${lat.toFixed(6)},${lon.toFixed(6)}`;
-                  alert("Could not get readable address, using coordinates.");
-                }
-              } catch (err) {
-                document.getElementById("location").value = `${lat.toFixed(6)},${lon.toFixed(6)}`;
-                alert("Error fetching address. Using coordinates.");
-              }
-            }, function(error) {
-              alert("Unable to get location. Please enter manually.");
-            });
-          } else {
-            alert("Geolocation is not supported by your browser.");
-          }
-        }
-      </script>
     </section>
 
-    <!-- User Reports Section -->
     <section class="card">
       <h2>Your Reports</h2>
       {% if reports %}
@@ -79,7 +65,6 @@
             <li>
               <strong>ID:</strong> {{ r[0] }} |
               <strong>Status:</strong> {{ r[4] }} |
-              <strong>Priority:</strong> {{ r[6] if r|length>6 else 'Medium' }} |
               <small>{{ r[5] }}</small>
               <p>{{ r[2] }}</p>
               <p><strong>Location:</strong> {{ r[3] }}</p>
@@ -88,7 +73,7 @@
               {% endif %}
               <p><a href="{{ url_for('view_feedback', report_id=r[0]) }}">View feedback</a></p>
               {% if r[4] == 'Resolved' %}
-                <p><a href="{{ url_for('download_certificate', report_id=r[0]) }}" class="btn btn-success">Download Certificate</a></p>
+                <p><a href="{{ url_for('download_certificate', report_id=r[0]) }}">Download Certificate</a></p>
               {% endif %}
             </li>
           {% endfor %}
@@ -98,5 +83,77 @@
       {% endif %}
     </section>
   </main>
+
+  <script>
+    let stream;
+    function startCamera() {
+      navigator.mediaDevices.getUserMedia({ video: true })
+      .then(function(s) {
+        stream = s;
+        document.getElementById("camera").srcObject = stream;
+      })
+      .catch(function(err) {
+        alert("Camera access denied");
+      });
+    }
+    function capturePhoto() {
+      const video = document.getElementById("camera");
+      const canvas = document.getElementById("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0);
+      const dataURL = canvas.toDataURL("image/jpeg", 0.7);
+      document.getElementById("preview").src = dataURL;
+      document.getElementById("photo_data").value = dataURL;
+      /* CAMERA OFF */
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      document.getElementById("camera").srcObject = null;
+    }
+
+    let map = L.map('map').setView([20.5937, 78.9629], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    let marker;
+
+    function getLocation() {
+      if (!navigator.geolocation) {
+        alert("Geolocation is not supported by your browser");
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        function(position) {
+
+          let lat = position.coords.latitude;
+          let lon = position.coords.longitude;
+          map.setView([lat, lon], 15);
+          if (marker) {
+            map.removeLayer(marker);
+          }
+          marker = L.marker([lat, lon]).addTo(map);
+          fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
+          .then(response => response.json())
+          .then(data => {
+            document.getElementById("location").value = data.display_name;
+          });
+        },
+        function(error) {
+          if(error.code === 1){
+            alert("Location permission denied. Please allow location.");
+          }
+          else if(error.code === 2){
+            alert("Location unavailable.");
+          }
+          else{
+            alert("Location request timed out.");
+          }
+        }
+      );
+    }
+  </script>
 </body>
 </html>
