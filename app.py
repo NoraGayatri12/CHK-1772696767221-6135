@@ -1,6 +1,7 @@
-# app.py
 import os
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file,jsonify
+import smtplib
+from email.mime.text import MIMEText
 from flask_mysqldb import MySQL
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -8,6 +9,63 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 from datetime import datetime, date
+from deep_translator import GoogleTranslator
+
+
+def send_email_notification(email, description, location):
+
+    message = f"""
+New Help Request on HopeBridge
+
+Description: {description}
+Location: {location}
+
+Please login to NGO dashboard to respond.
+"""
+
+    msg = MIMEText(message)
+    msg['Subject'] = "HopeBridge Help Alert"
+    msg['From'] = "sweetynora125@gmail.com"
+    msg['To'] = email
+
+    server = smtplib.SMTP("smtp.gmail.com",587)
+    server.starttls()
+    server.login("sweetynora125@gmail.com","sweety12@2005")
+
+    server.send_message(msg)
+    server.quit()
+
+def send_ngo_notification(description, location):
+
+    sender_email = "sweetynora125@gmail.com"
+    sender_password = "sweety12@2005"
+
+    ngo_email = "kaverikalburgi1627@gmail.com"
+
+    subject = "🚨 New Help Request Detected"
+
+    body = f"""
+    A new person needs help.
+
+    Description: {description}
+    Location: {location}
+
+    Please check the NGO dashboard.
+    """
+
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['From'] = sender_email
+    msg['To'] = ngo_email
+
+    try:
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.send_message(msg)
+        server.quit()
+    except Exception as e:
+        print("Email error:", e)
 
 # ---------- Config ----------
 app = Flask(__name__)
@@ -111,10 +169,12 @@ def domains():
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        name = request.form.get('name').strip()
-        email = request.form.get('email').strip().lower()
-        password = request.form.get('password')
-        role = request.form.get('role')
+        name=request.form.get('name')
+        email=request.form.get('email')
+        password=request.form.get('password')
+        role=request.form.get('role')
+        phone=request.form.get('phone')
+        city=request.form.get('city')
 
         if not (name and email and password and role):
             flash("All fields are required.")
@@ -123,8 +183,9 @@ def signup():
         hashed = generate_password_hash(password)
         cur = mysql.connection.cursor()
         try:
-            cur.execute("INSERT INTO users (name, email, password, role) VALUES (%s,%s,%s,%s)",
-                        (name, email, hashed, role))
+            cur.execute(
+             "INSERT INTO users(name,email,password,role,phone,city) VALUES(%s,%s,%s,%s,%s,%s)",
+              (name,email,hashed,role,phone,city))
             mysql.connection.commit()
             flash("Account created. Please login.")
             return redirect(url_for('login'))
@@ -175,6 +236,7 @@ def user_dashboard():
     if request.method == 'POST':
         description = request.form.get('description', '').strip()
         location = request.form.get('location', '').strip()
+        description_en = description
         domain = request.form.get('domain')
         priority = detect_priority(description)
         category = detect_category(description)
@@ -183,10 +245,24 @@ def user_dashboard():
 
         cur = mysql.connection.cursor()
         cur.execute("""
-        INSERT INTO reports (user_id, photo, description, location, priority, category, domain)
-        VALUES (%s,%s,%s,%s,%s,%s,%s)
-        """, (session['user_id'], filename, description, location, priority, category, domain))
+        INSERT INTO reports (user_id, photo, description, description_en, location, priority, category, domain)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+        """, (session['user_id'], filename, description,description_en, location, priority, category, domain))
+        cur.execute(
+        "SELECT email FROM users WHERE role='ngo' AND city=%s",
+        (location,))
+        ngos = cur.fetchall()
+
+        if len(ngos)==0:
+          cur.execute("SELECT email FROM users WHERE role='ngo'")
+          ngos=cur.fetchall()
+
+        for ngo in ngos:
+            pass
+            #send_email_notification(ngo[0], description, location)
         mysql.connection.commit()
+        #send_ngo_notification(description, location)
+
         cur.close()
         flash("Report submitted.")
         return redirect(url_for('user_dashboard'))
@@ -236,15 +312,60 @@ def ngo_dashboard():
 
     cur = mysql.connection.cursor()
     cur.execute("""
-        SELECT r.id, r.photo, r.description, r.location, 
-           r.status, r.created_at, r.priority, r.category,
-           u.name AS reporter_name
-        FROM reports r JOIN users u ON r.user_id = u.id
-        ORDER BY r.created_at DESC
+    SELECT r.id, r.photo, r.description, r.location, r.status, r.created_at, 
+       r.priority, r.category, u.name AS reporter_name
+    FROM reports r
+    JOIN users u ON r.user_id = u.id
+    GROUP BY r.id
+    ORDER BY r.created_at DESC
     """)
     reports = cur.fetchall()
     cur.close()
     return render_template('ngo_dashboard.html', reports=reports)
+
+@app.route('/update_status/<int:report_id>', methods=['POST'])
+def update_status(report_id):
+
+    if 'user_id' not in session or session.get('role') != 'ngo':
+        return redirect(url_for('login'))
+
+    status = request.form.get('status')
+
+    cur = mysql.connection.cursor()
+
+    cur.execute("UPDATE reports SET status=%s WHERE id=%s",(status,report_id))
+
+    mysql.connection.commit()
+
+    cur.close()
+
+    flash("Status updated successfully")
+
+    return redirect(url_for('ngo_dashboard'))
+
+@app.route('/upload_progress/<int:report_id>', methods=['POST'])
+def upload_progress(report_id):
+
+    if 'user_id' not in session or session.get('role') != 'ngo':
+        return redirect(url_for('login'))
+
+    photo = request.files['progress_photo']
+
+    if photo:
+        filename = photo.filename
+        photo.save(os.path.join('static/uploads', filename))
+
+        cur = mysql.connection.cursor()
+
+        cur.execute(
+        "UPDATE reports SET progress_photo=%s WHERE id=%s",
+        (filename, report_id)
+        )
+        mysql.connection.commit()
+
+        flash("Progress photo uploaded")
+
+    return redirect(url_for('ngo_dashboard'))
 
 # Add feedback (NGO only)
 @app.route('/add_feedback/<int:report_id>', methods=['GET', 'POST'])
@@ -378,6 +499,132 @@ def public_feed():
     items = cur.fetchall()
     cur.close()
     return render_template('public_feed.html', items=items)
+
+from nltk.chat.util import Chat, reflections
+# Define your patterns
+pairs = [
+    # Greetings
+    [
+        r"hi|hello|hey|greetings|good morning|good afternoon|good evening",
+        ["Hello! How can I help you today?", "Hi there! Need assistance?", "Greetings! How may I support you?"]
+    ],
+     # Affirmative responses
+    [
+        r"yes|yeah|yep|sure|ok|okay|alright",
+        ["Great! How can I assist you further?", "Okay, tell me more.", "Alright, what would you like to know?"]
+    ],  
+    
+    # Negative responses
+    [
+        r"no|nope|not really|no thanks",
+        ["No problem! If you change your mind, I'm here to help.", "Okay, feel free to ask if you need anything later."]
+    ],
+    
+
+
+    # Who are you / what is this platform
+    [
+        r"who are you|what is your name|what are you",
+        ["I'm HopeBridge Assistant, your guide to social support services.", "I'm Hope, your AI helper on the HopeBridge platform."]
+    ],
+    [
+        r"what is (this|HopeBridge|the platform)",
+        ["HopeBridge connects people in need with verified NGOs and social workers. You can report issues, get help, and track resolution."]
+    ],
+    
+    # Reporting an issue
+    [
+        r"how (do|can) I (report|register|submit) (a|an) (issue|problem|complaint)",
+        ["To report an issue, log in as a user, go to your dashboard, and fill out the report form. You can add a description, location, and photo."]
+    ],
+    [
+        r"what (kind of|type of) issues can I report",
+        ["You can report any social issue such as homelessness, food insecurity, domestic problems, child welfare, elderly care, or any community concern."]
+    ],
+    
+    # NGOs
+    [
+        r"how (do|can) I (find|contact|reach) (a|an) NGO",
+        ["Once you submit a report, our system assigns the nearest registered NGO to follow up. You can also view resolved cases in the public feed."]
+    ],
+    [
+        r"(are there|is there) (any|) NGOs near me",
+        ["NGOs are assigned based on your location when you submit a report. Make sure your location is accurate in the report form."]
+    ],
+    
+    # Help / assistance
+    [
+        r"I need help|can you help me|I have a problem",
+        ["Of course! Please tell me more about your situation, or go to your dashboard and create a report."]
+    ],
+    [
+        r"help (with|for) (.*)",
+        ["I'm here to assist. Could you provide more details? If it's urgent, please submit a report with full information."]
+    ],
+    
+    # Account and login
+    [
+        r"how (do|can) I (sign up|register|create account)",
+        ["You can sign up by clicking the 'Sign Up' button on the homepage. Choose your role: User (seeking help) or NGO (offering help)."]
+    ],
+    [
+        r"I forgot my password",
+        ["On the login page, click 'Forgot Password' (if implemented) or contact support to reset your password."]
+    ],
+    
+    # Feedback / certificate
+    [
+        r"how (do|can) I (give|leave) feedback",
+        ["After an NGO resolves your report, they will add feedback. You can view it in the report details."]
+    ],
+    [
+        r"(what is|)certificate",
+        ["When a report is resolved, you receive a certificate of assistance. You can download it from your dashboard."]
+    ],
+    
+    # General info
+    [
+        r"(what services do you offer|what can you do)",
+        ["I can help you navigate HopeBridge: report issues, find NGOs, track your cases, and answer questions about social support."]
+    ],
+    
+    # Thanks
+    [
+        r"thank you|thanks|thank you so much",
+        ["You're welcome! If you need anything else, just ask.", "Happy to help! Stay safe."]
+    ],
+    
+    # Goodbye
+    [
+        r"bye|goodbye|see you|talk to you later",
+        ["Goodbye! Take care.", "See you soon. Remember, we're here to help."]
+    ],
+    
+    # Fallback for unknown queries
+    [
+        r"(.*)",
+        ["I'm not sure I understood. Could you rephrase? You can also try asking about reporting, NGOs, or account help."]
+    ]
+]
+
+# Create the chatbot instance
+nltk_chatbot = Chat(pairs, reflections)  
+
+
+@app.route("/chatbot", methods=["POST"])
+def chatbot():
+    data = request.get_json(force=True, silent=True) or {}
+    user_message = data.get("message", "").strip()
+    
+    if not user_message:
+        return jsonify({"reply": "Please type something."})
+    
+    reply = nltk_chatbot.respond(user_message)
+    
+    if not reply:
+        reply = "I'm not sure I understood. Could you rephrase?"
+    
+    return jsonify({"reply": reply})
 
 # ---------- Run ----------
 if __name__ == '__main__':
