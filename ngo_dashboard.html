@@ -33,11 +33,21 @@
             <tr>
               <td>{{ r[0] }}</td>   <!-- Report ID -->
               <td>{{ r[8] }}</td>   <!-- Reporter Name -->
-              <td>{{ r[2] }}</td>   <!-- Description -->
-              <td>{{ r[3] }}</td>   <!-- Location -->
+              <td>
+               {{ r[2] }}
+                <br>
+                <small style="color:gray;">English: {{ r[3] }}</small>
+              </td>   <!-- Description -->
+              <td>
+                {{ r[3] }}
+                <br>
+                <a href="https://www.google.com/maps/search/?api=1&query={{ r[3] }}" target="_blank">
+                  <button>View Map</button>
+                </a>
+              </td>  <!-- Location -->
               <td>
               {% if r[1] %}
-                <img src="{{ url_for('static', filename='uploads/' ~ r[1]) }}" class="thumb">
+                <img src="{{ url_for('static', filename='uploads/' ~ r.progress_photo) }}" class="thumb">
               {% endif %}
               </td>
               <td>{{ r[4] }}</td>   <!-- Status -->
@@ -50,10 +60,24 @@
                 <span style="color:green;">Low</span>
               {% endif %}
               </td>
+
+                <form action="/update_status/{{ r[0] }}" method="post">
+                  <select name="status">
+                    <option value="Accepted">Accepted</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Resolved">Resolved</option>
+                  </select>
+                  <button type="submit">Update</button>
+                </form>
+                <form action="/upload_progress/{{ r[0] }}" method="post" enctype="multipart/form-data">
+                  <input type="file" name="progress_photo" required>
+                  <button type="submit">Upload Progress Photo</button>
+                </form>
+              </td>
               <td>{{ r[7] }}</td>   <!-- Category -->
               <td>
-                <a href="{{ url_for('view_feedback', report_id=r[0]) }}">View Feedback</a>
-                <a href="{{ url_for('add_feedback', report_id=r[0]) }}">Add Feedback</a>
+                <a href="{{ url_for('view_feedback', report_id=r[0]) }}"><button id="decorate">View Feedback</button></a>
+                <a href="{{ url_for('add_feedback', report_id=r[0]) }}"><button id="decorate" style="background-color: blanchedalmond;">Add Feedback</button></a>
               </td>
             </tr>
             {% endfor %}
