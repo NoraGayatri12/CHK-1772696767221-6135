@@ -6,7 +6,7 @@
   <title>Signup - Helping Hands</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body>
+<body class="allBody">
   <div class="container">
     <h2>Create account</h2>
     {% with messages = get_flashed_messages() %}
@@ -22,6 +22,10 @@
       <label>Password</label>
       <input type="password" name="password" required>
       <label>Role</label>
+      <label>Phone Number</label>
+      <input type="text" name="phone" required>
+      <label>City</label>
+      <input type="text" name="city" required>
       <select name="role">
         <option value="user">User</option>
         <option value="ngo">NGO</option>
