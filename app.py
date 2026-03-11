@@ -1,3 +1,4 @@
+# app.py
 import os
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file,jsonify
 import smtplib
@@ -10,6 +11,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 from datetime import datetime, date
 from deep_translator import GoogleTranslator
+from flask import session, request, redirect, url_for
 
 
 def send_email_notification(email, description, location):
@@ -28,17 +30,24 @@ Please login to NGO dashboard to respond.
     msg['From'] = "sweetynora125@gmail.com"
     msg['To'] = email
 
-    server = smtplib.SMTP("smtp.gmail.com",587)
-    server.starttls()
-    server.login("sweetynora125@gmail.com","sweety12@2005")
+    try:
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        # Replace below with your App Password (not your normal Gmail password)
+        server.login("sweetynora125@gmail.com", "YOUR_APP_PASSWORD_HERE")
+        server.send_message(msg)
+        server.quit()
+        print(f"Email sent to {email}")
+    except Exception as e:
+        print("Email error:", e)
 
-    server.send_message(msg)
-    server.quit()
 
 def send_ngo_notification(description, location):
-
+    """
+    Send a single email notification to the main NGO email
+    """
     sender_email = "sweetynora125@gmail.com"
-    sender_password = "sweety12@2005"
+    sender_password = "abcdabcd"
 
     ngo_email = "kaverikalburgi1627@gmail.com"
 
@@ -157,6 +166,13 @@ def create_certificate(user_name, report_id, report_desc):
     return cert_filename
 
 # ---------- Routes ----------
+
+@app.route('/set_language', methods=['POST'])
+def set_language():
+    lang = request.form.get('lang', 'en')
+    session['lang'] = lang
+    return redirect(request.referrer or url_for('index'))
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -248,18 +264,21 @@ def user_dashboard():
         INSERT INTO reports (user_id, photo, description, description_en, location, priority, category, domain)
         VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
         """, (session['user_id'], filename, description,description_en, location, priority, category, domain))
+
         cur.execute(
         "SELECT email FROM users WHERE role='ngo' AND city=%s",
         (location,))
         ngos = cur.fetchall()
 
-        if len(ngos)==0:
+        if not ngos:
           cur.execute("SELECT email FROM users WHERE role='ngo'")
           ngos=cur.fetchall()
 
         for ngo in ngos:
-            pass
-            #send_email_notification(ngo[0], description, location)
+            # pass
+            subject = "🚨 New Help Request"
+            body = f"A new report has been submitted.\n\nDescription: {description}\nLocation: {location}\n\nPlease check your NGO dashboard."
+            send_email_notification(ngo[0], description, location)
         mysql.connection.commit()
         #send_ngo_notification(description, location)
 
@@ -267,14 +286,30 @@ def user_dashboard():
         flash("Report submitted.")
         return redirect(url_for('user_dashboard'))
 
-    # fetch user's reports
+    # Fetch user's reports
     cur = mysql.connection.cursor()
     cur.execute("SELECT id, photo, description, location, status, created_at FROM reports WHERE user_id=%s ORDER BY created_at DESC",
-                (session['user_id'],))
+        (session['user_id'],))
     reports = cur.fetchall()
     cur.close()
-    return render_template('user_dashboard.html', reports=reports)
 
+    # Translate description if language != English
+    target_lang = session.get('lang', 'en')
+    translated_reports = []
+    for r in reports:
+        desc = r[2]
+        if target_lang != 'en':
+            try:
+                desc_translated = GoogleTranslator(source='en', target=target_lang).translate(desc)
+            except:
+                desc_translated = desc
+        else:
+            desc_translated = desc
+        r = list(r)
+        r.append(desc_translated)  # append translated description at index - new last element
+        translated_reports.append(r)
+    return render_template('user_dashboard.html', reports=translated_reports)
+    
 @app.route('/domain/<domain_name>')
 def domain_page(domain_name):
 
@@ -333,10 +368,17 @@ def update_status(report_id):
 
     cur = mysql.connection.cursor()
 
-    cur.execute("UPDATE reports SET status=%s WHERE id=%s",(status,report_id))
+    cur.execute("UPDATE reports SET status=%s, last_update=NOW() WHERE id=%s", (status, report_id))
 
     mysql.connection.commit()
-
+    # Fetch user email
+    cur.execute("SELECT u.email, r.description, r.location FROM reports r JOIN users u ON r.user_id = u.id WHERE r.id=%s", (report_id,))
+    user = cur.fetchone()
+    if user:
+        user_email, description, location = user
+        subject = "🔔 Your Report Status Updated"
+        body = f"Your report has been updated by NGO.\n\nNew Status: {status}\nDescription: {description}\nLocation: {location}"
+        send_email_notification(user_email, subject, body)
     cur.close()
 
     flash("Status updated successfully")
@@ -349,22 +391,24 @@ def upload_progress(report_id):
     if 'user_id' not in session or session.get('role') != 'ngo':
         return redirect(url_for('login'))
 
-    photo = request.files['progress_photo']
-
-    if photo:
-        filename = photo.filename
-        photo.save(os.path.join('static/uploads', filename))
-
+    photo = request.files.get('progress_photo')
+    if not photo:
+        filename = save_file(photo)  # save_file() function already defined
+        # Update report table
         cur = mysql.connection.cursor()
-
-        cur.execute(
-        "UPDATE reports SET progress_photo=%s WHERE id=%s",
-        (filename, report_id)
-        )
+        cur.execute("UPDATE reports SET progress_photo=%s, status='In Progress' WHERE id=%s", (filename, report_id))
         mysql.connection.commit()
+       # Notify the user
+        cur.execute("SELECT u.email, u.name, r.description FROM reports r JOIN users u ON r.user_id=u.id WHERE r.id=%s", (report_id,))
+        row = cur.fetchone()
+        if row:
+            user_email, user_name, report_desc = row
+            subject = "📸 Progress Photo Uploaded for Your Report"
+            body = f"NGO has uploaded a progress photo for your report.\n\nDescription: {description}\nLocation: {location}\n\nCheck your dashboard to view."
+            send_email_notification(user_email, report_desc, "Progress photo uploaded by NGO")
+        cur.close()
 
-        flash("Progress photo uploaded")
-
+    flash("Progress photo uploaded and user notified")
     return redirect(url_for('ngo_dashboard'))
 
 # Add feedback (NGO only)
